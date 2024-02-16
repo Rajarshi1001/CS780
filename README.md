@@ -1,3 +1,3 @@
 
 
-# CS780 Assingments
+# CS780 Assignments
