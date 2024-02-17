@@ -9,13 +9,8 @@
 200762_Assignment_1
 |
 |----CS780_Assignment1_Question.pdf
-
 |----CS780_midsem_soln1.ipynb
-
 |----CS780_midsem_soln2.ipynb
-
 |----CS780_midsem_soln3.ipynb
-
 |----200762_CS780_Midsem_Report.pdf
-
 |----README.md
