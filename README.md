@@ -11,6 +11,13 @@
 - Analysing the variation of target values for a particular state for the case of both environments
 
 > Assignment 2
-- Implementation of control algorithms like `MonteCarloControl`, `SARSAControl`, `Q learning`, `double Q learning`, `SARSA(\lambda)` with eligibility traces, `Q(\lambda)` with traces
+- Implementation of control algorithms like `MonteCarloControl`, `SARSAControl`, `Q learning`, `double Q learning`, `SARSA`($\lambda$) with eligibility traces, `Q`($\lambda$) with traces
 - Implementation of model based algorithms like `Dyna-Q` and `Trajectory Sampling` for optimal policy calculation and values for each of the states in Random Maze Environment
 - Comparison between different off-policy and on-policy control algorithms for this environment
+
+> Midsem
+- Implementation of Random Maze Environment and its simulations
+- Implementation of `Policy Iteration` and `Value Iteration` for optimal policy calculation and values for each of the states in the environment and its comparative analyses.
+- Implementation of `Monte Carlo`, `Temporal Difference-n step`, `TD`($\lambda$) algorithm for calculation of values for each states using optimal policies and its comparative analyses.
+
+
