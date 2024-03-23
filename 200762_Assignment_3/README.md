@@ -26,10 +26,12 @@ on two different OpenAI gym environments like __Cartpole-v0__ and __MountainCar-
 
 Directory Structure
 
+```
 200762_Assignment_3
 |
 |----images/
 |----assignment_3.ipynb
+```
 
 
 
