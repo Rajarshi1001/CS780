@@ -15,9 +15,26 @@
 - Implementation of model based algorithms like `Dyna-Q` and `Trajectory Sampling` for optimal policy calculation and values for each of the states in Random Maze Environment
 - Comparison between different off-policy and on-policy control algorithms for this environment
 
+> Assignment 3
+
+This assignment primarily includes the implementation of 5 *Value Based Deep RL models* namely:
+- `Neural Fitted Q Iteration (NFQ)`
+- `Deep Q Network (DQN)`
+- `Double Deep Q Network (DDQN)` 
+- `Dueling Double Deep Q Network (D3QN)`
+- `Dueling Double Deep Q Network with Prioritized Experience Replay (D3QN-PER)`
+
+and 2 *Policy Based Deep RL models* namely:
+- `REINFORCE`
+- `Vanilla Policy Gradient (VPG)`
+
+on two different OpenAI gym environments like __Cartpole-v0__ and __MountainCar-v1__ respectively.
+
 > Midsem
 - Implementation of Random Maze Environment and its simulations
 - Implementation of `Policy Iteration` and `Value Iteration` for optimal policy calculation and values for each of the states in the environment and its comparative analyses.
 - Implementation of `Monte Carlo`, `Temporal Difference-n step`, `TD`($\lambda$) algorithm for calculation of values for each states using optimal policies and its comparative analyses.
+
+
 
 
