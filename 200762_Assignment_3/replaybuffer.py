@@ -48,6 +48,8 @@ class ReplayBuffer():
           self.beta = kwargs.get('beta', 0.4)
           self.beta_rate = kwargs.get('beta_rate', 0.2)
 
+
+class ReplayBuffer(ReplayBuffer):
     def store(self, experience):
         #stores the experiences, based on parameters in init it can assign priorities, etc.
         #
@@ -62,7 +64,10 @@ class ReplayBuffer():
             else:
                 self.priorities[self.position] = self.max_priority
         self.position = (self.position + 1) % self.bufferSize
+
+
         
+class ReplayBuffer(ReplayBuffer):
     def update(self, indices, priorities):
         #this is mainly used for PER-DDQN
         #otherwise just have a pass in this method
@@ -77,6 +82,7 @@ class ReplayBuffer():
         else:
           pass
     
+class ReplayBuffer(ReplayBuffer):
     def collectExperiences(self, env, state, explorationStrategy, countExperiences, net = None):
         #this method allows the agent to interact with the environment starting from a state and it collects
         #experiences during the interaction, it uses network to get the value function and uses exploration strategy
@@ -114,6 +120,7 @@ class ReplayBuffer():
 
         return
 
+class ReplayBuffer(ReplayBuffer):
     def sample(self, batchSize, **kwargs):
         # this method returns batchSize number of experiences
         # based on extra arguments, it could do sampling or it could return the latest batchSize experiences or
@@ -135,6 +142,7 @@ class ReplayBuffer():
           samples = random.sample(self.buffer, min(len(self.buffer), batchSize))
           return samples
       
+class ReplayBuffer(ReplayBuffer):
     def splitExperiences(self, experiences):
         #it takes in experiences and gives the following:
         #states, actions, rewards, nextStates, dones
@@ -142,6 +150,7 @@ class ReplayBuffer():
         states, actions, rewards, nextStates, dones = list(map(list, zip(*experiences)))
         return states, actions, rewards, nextStates, dones
     
+class ReplayBuffer(ReplayBuffer):
     def length(self):
         #tells the number of experiences stored in the internal buffer
 

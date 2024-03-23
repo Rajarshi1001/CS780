@@ -17,6 +17,7 @@ from helper import *
 env1 = gym.make('CartPole-v0')
 env2 = gym.make('MountainCar-v0')
 
+
 """
 This class implements the NFQ Agent, you are required to implement the various methods of this class
 as outlined below. Note this class is generic and should work with any permissible Gym environment.
@@ -42,7 +43,10 @@ def evaluateAgent(self)
 """
 
 class NFQ():
-    def __init__(self, env, seed, gamma, epochs,
+    def __init__(self, env, 
+                 seed, 
+                 gamma, 
+                 epochs,
                  bufferSize,
                  batchSize,
                  optimizerFn,
@@ -74,7 +78,7 @@ class NFQ():
         self.explorationStrategyEvalFn = explorationStrategyEvalFn
         self.initial_temp = 1.0
         self.initial_epsilon = 1.0
-        self.decay_rate = 0.08
+        self.decay_rate = 0.3
         self.min_epsilon = 0.2
         self.min_temp = 0.3
 
@@ -86,11 +90,14 @@ class NFQ():
         # initialize all the variables
         self.initBookKeeping()
 
-        self.q_network = createValueNetwork(env.observation_space.shape[0], env.action_space.n, hDim = [32, 32], activation = F.relu).to(DEVICE)
+        self.q_network = createValueNetwork(env.observation_space.shape[0], env.action_space.n, hDim = [256, 128], activation = F.relu).to(DEVICE)
         if optimizerFn.lower() == 'adam':
             self.optimizer = optim.Adam(self.q_network.parameters(), lr=optimizerLR)
+        if optimizerFn.lower() == 'rmsprop':
+            self.optimizer = optim.RMSprop(self.q_network.parameters(), lr=optimizerLR)
 
-    
+
+class NFQ(NFQ):
     def initBookKeeping(self):
         #this method creates and intializes all the variables required for book-keeping values and it is called
         #init method
@@ -99,14 +106,18 @@ class NFQ():
         self.evalRewardsList = []
         self.wallClockTimeList = []
         self.finalEvalRewards = []
-        
+        self.totalStepsList = []
+
+
+class NFQ(NFQ):
     def performBookKeeping(self, train = True):
         #this method updates relevant variables for the bookKeeping, this can be called
         #multiple times during training
         #if you want you can print information using this, so it may help to monitor progress and also help to debug
-        pass   
+        pass
+      
 
-    
+class NFQ(NFQ):
     def runNFQ(self):
         #this is the main method, it trains the agent, performs bookkeeping while training and finally evaluates
         #the agent and returns the following quantities:
@@ -120,7 +131,7 @@ class NFQ():
 
         self.initBookKeeping()
 
-        self.trainRewardsList, self.trainTimeList, self.evalRewardsList, self.wallClockTimeList = self.trainAgent()
+        self.trainRewardsList, self.trainTimeList, self.evalRewardsList, self.wallClockTimeList, self.totalStepsList = self.trainAgent()
 
         final_evaluation_start_time = time.time()
         self.finalEvalRewards = self.evaluateAgent()  # Ensure this method returns total rewards for the final evaluation
@@ -132,15 +143,15 @@ class NFQ():
         cumulative_wall_clock_time = np.cumsum(self.wallClockTimeList).tolist() if self.wallClockTimeList else []
         cumulative_wall_clock_time.append(cumulative_wall_clock_time[-1] + final_evaluation_time if cumulative_wall_clock_time else final_evaluation_time)
 
-        print(f"Mean Train Rewards: {mean_train_rewards}")
-        print(f"Mean Evaluation Rewards: {mean_eval_rewards}")
-        print(f"Total Training Time: {cumulative_train_time[-1] if cumulative_train_time else 0}s")
-        print(f"Total Wall Clock Time: {cumulative_wall_clock_time[-1] if cumulative_wall_clock_time else 0}s")
+        # print(f"Mean Train Rewards: {mean_train_rewards}")
+        # print(f"Mean Evaluation Rewards: {mean_eval_rewards}")
+        # print(f"Total Training Time: {cumulative_train_time[-1] if cumulative_train_time else 0}s")
+        # print(f"Total Wall Clock Time: {cumulative_wall_clock_time[-1] if cumulative_wall_clock_time else 0}s")
 
+        return self.trainRewardsList, self.trainTimeList, self.evalRewardsList, self.wallClockTimeList, self.finalEvalRewards, self.totalStepsList
+      
 
-        return self.trainRewardsList, self.trainTimeList, self.evalRewardsList, self.wallClockTimeList, self.finalEvalRewards
-    
-    
+class NFQ(NFQ):
     def trainAgent(self):
         #this method collects experiences and trains the NFQ agent and does BookKeeping while training.
         #this calls the trainNetwork() method internally, it also evaluates the agent per episode
@@ -148,14 +159,20 @@ class NFQ():
 
         # trainRewardsList, trainTimeList, evalRewardsList, wallClockTimeList = [], [], [], []
         training_start_time = time.time()
+        total_steps = 0
+        
         for episode in range(self.MAX_TRAIN_EPISODES):
           start_time = time.time()
           state = self.env.reset()
+          
           if isinstance(state, tuple):
             state = state[0]
+          
           total_reward = 0
           done = False
           counter = 0
+          steps_per_episode = 0
+          
           while not done:
             if self.explorationStrategyTrainFn == 'greedy':
               action = selectGreedyAction(self.q_network, state)
@@ -167,24 +184,52 @@ class NFQ():
               action = selectEpsilonGreedyAction(self.q_network, state, epsilon)
 
             next_state, reward, done, truncated, _ = self.env.step(action)
+
+            # Check for termination conditions
+            if 'CartPole' in str(self.env):
+              cart_pos, _, pole_angle, _ = next_state
+              if abs(cart_pos) > 2.4 or abs(pole_angle) > (12 * (3.14 / 180)):
+                  done = True
+              if counter > 500:
+                    done = True
+              counter += 1
+
+            elif 'MountainCar' in str(self.env):
+              position, velocity = next_state
+              reward = reward + (self.env.goal_position + position) ** 2 # reward shaping
+              
+              if position > self.env.goal_position or counter >= 200:
+                  done = True
+              counter += 1
+
             self.replaybuffer.store((state, action, reward, next_state, done))
             state = next_state
             total_reward += reward
+            counter += 1
+            steps_per_episode += 1
+            total_steps += 1
 
-            if self.replaybuffer.length() >= self.bufferSize:
+          # Check whether it's time to train the q network using the experiences received from the Replay Buffer
+          if self.replaybuffer.length() >= self.bufferSize:
               experiences = self.replaybuffer.sample(self.batchSize)
-              # print(experiences)
               self.trainNetwork(experiences, self.epochs)
-
+          
+          # print(total_reward)
+          # print(total_steps)
+          
           self.trainRewardsList.append(total_reward)
           self.trainTimeList.append(time.time() - start_time)
+          self.totalStepsList.append(total_steps)
 
           if episode % self.EVAL_FREQUENCY == 0:
               eval_reward = self.evaluateAgent()
               self.evalRewardsList.append(eval_reward)
               self.wallClockTimeList.append(time.time() - training_start_time)
+              
+        return self.trainRewardsList, self.trainTimeList, self.evalRewardsList, self.wallClockTimeList, self.totalStepsList
 
-    
+
+class NFQ(NFQ):
     def trainNetwork(self, experiences, epochs):
         # this method trains the value network epoch number of times and is called by the trainAgent function
         # it essentially uses the experiences to calculate target, using the targets it calculates the error, which
@@ -196,17 +241,14 @@ class NFQ():
         # Unpack experiences
         states, actions, rewards, next_states, dones = list(map(list, zip(*experiences)))
 
-        # print(states)
-        # states = np.array(states)
-        # print(states)
-        states = torch.tensor(states).to(DEVICE)
+        states = torch.tensor(np.array(states)).float().to(DEVICE)
+        next_states = torch.tensor(np.array(next_states)).float().to(DEVICE)
         actions = torch.LongTensor(actions).to(DEVICE).view(-1, 1)
         rewards = torch.FloatTensor(rewards).to(DEVICE).view(-1, 1)
-        next_states = torch.FloatTensor(next_states).to(DEVICE)
         dones = torch.IntTensor(dones).to(DEVICE).view(-1, 1)
 
-        # print(states)
-        print("Q Network training Started")
+        
+        # print("Q Network training Started")
         for epoch in range(epochs):
 
           q_values = self.q_network(states)
@@ -220,8 +262,9 @@ class NFQ():
           loss.backward()
           self.optimizer.step()
 
-          print(f'Epoch {epoch + 1}/{epochs}, Loss: {loss.item()}')
-          
+          # print(f'Epoch {epoch + 1}/{epochs}, Loss: {loss.item()}')
+
+class NFQ(NFQ):
     def evaluateAgent(self):
         #this function evaluates the agent using the value network, it evaluates agent for MAX_EVAL_EPISODES
         #typcially MAX_EVAL_EPISODES = 1
@@ -233,52 +276,103 @@ class NFQ():
 
           total_reward = 0
           done = False
+          counter = 0
 
           while not done:
             action = selectGreedyAction(self.q_network, state)
             next_state, reward, done, truncated, _ = self.env.step(action)
-            total_reward += reward
+
+            # Environment-specific termination conditions
+            if 'CartPole' in str(self.env):
+              cart_pos, _, pole_angle, _ = next_state
+              if abs(cart_pos) > 2.4 or abs(pole_angle) > (12 * (3.14 / 180)):
+                  done = True
+              if counter > 500:
+                  done = True
+              counter += 1
+
+            elif 'MountainCar' in str(self.env):
+              position, velocity = next_state
+              reward = reward + (self.env.goal_position + position) ** 2
+              if abs(position) >= 0.5:
+                  done = True
+              if counter > 200:
+                  done = True
+              counter += 1
+
             state = next_state
+            total_reward += reward
+            counter += 1
 
           evalRewards.append(total_reward)
 
         return evalRewards
+      
+
+def plot_stats_nfq(num_instances = 5,
+                   train_episodes = 100,
+                    chosen_env = env1, 
+                    plot_train_rewards = True, 
+                    plot_train_times = True, 
+                    plot_wall_clock_times = True,
+                    plot_total_steps = True, 
+                    plot_eval_rewards = True):
     
+    # Number of environment instances you want to run
+    num_instances = num_instances
+    env_name = chosen_env.spec.id
+    # print(chosen_env.goal_position)
+    # Dictionary to store rewards, training times, and wall clock times for all instances
+    all_train_rewards = {}
+    all_train_times = {}
+    all_wall_clock_times = {}
+    all_eval_rewards = {}
+    all_total_steps = {}
 
+    for instance in range(num_instances):
+        # Initialize NFQ for the current instance
+        instance_seed = 123 + instance
+        nfq_network = NFQ(chosen_env,
+                        seed = instance_seed,
+                        gamma = 0.99,
+                        epochs = 20,
+                        bufferSize = 32,
+                        batchSize = 32,
+                        optimizerFn = 'adam',
+                        optimizerLR = 0.0005,
+                        MAX_TRAIN_EPISODES = train_episodes,
+                        MAX_EVAL_EPISODES = 1,
+                        explorationStrategyTrainFn = 'epsilon greedy',
+                        explorationStrategyEvalFn = 'greedy')
 
-# Executing the code
-# Number of environment instances you want to run
-num_instances = 3
+        train_rewards, train_times, eval_rewards, wall_clock_times, _, total_steps = nfq_network.runNFQ()
+        all_train_rewards[f'Instance {instance + 1}'] = train_rewards
+        all_train_times[f'Instance {instance + 1}'] = train_times
+        all_wall_clock_times[f'Instance {instance + 1}'] = wall_clock_times
+        all_eval_rewards[f'Instance {instance + 1}'] = eval_rewards
+        all_total_steps[f'Instance {instance + 1}'] = total_steps
 
-# Dictionary to store rewards, training times, and wall clock times for all instances
-all_train_rewards = {}
-all_train_times = {}
-all_wall_clock_times = {}
-all_eval_rewards = {}
+    if plot_train_times:
+        plotQuantity(all_train_times, nfq_network.MAX_TRAIN_EPISODES, ['Training Times {} NFQ'.format(env_name), 'Episodes', 'Time (s)'], "images/nfq_train_times_{}.png".format(env_name))
+    
+    if plot_train_rewards:    
+        plotQuantity(all_train_rewards, nfq_network.MAX_TRAIN_EPISODES, ['Training Rewards {} NFQ'.format(env_name), 'Episodes', 'Rewards'], "images/nfq_train_rewards_{}.png".format(env_name))
+    
+    if plot_wall_clock_times:
+        plotQuantity(all_wall_clock_times, nfq_network.MAX_TRAIN_EPISODES // nfq_network.MAX_EVAL_EPISODES, ['Wall Clock Times {} NFQ'.format(env_name), 'Episodes', 'Time (s)'], "images/nfq_wall_clock_times_{}.png".format(env_name))
+    
+    if plot_eval_rewards:
+        plotQuantity(all_eval_rewards, nfq_network.MAX_TRAIN_EPISODES // nfq_network.MAX_EVAL_EPISODES, ['Eval Rewards {} NFQ'.format(env_name), 'Episodes', 'Time (s)'], "images/nfq_eval_rewards_{}.png".format(env_name))
+    
+    if plot_total_steps:
+        plotQuantity(all_total_steps, nfq_network.MAX_TRAIN_EPISODES , ['Total Steps {} NFQ'.format(env_name), 'Episodes', 'Time (s)'], "images/nfq_total_steps_{}.png".format(env_name))
+    
+# plot_stats_nfq(num_instances = 3,
+#                train_episodes = 10,
+#                 chosen_env = env2, 
+#                 plot_train_rewards = True, 
+#                 plot_train_times = True, 
+#                 plot_wall_clock_times = True,
+#                 plot_total_steps = True, 
+#                 plot_eval_rewards = True)      
 
-for instance in range(num_instances):
-    # Initialize NFQ for the current instance
-    instance_seed = 123 + instance
-    nfq_network = NFQ(env1,
-                      seed = instance_seed,
-                      gamma = 0.99,
-                      epochs = 15,
-                      bufferSize = 32,
-                      batchSize = 32,
-                      optimizerFn = 'adam',
-                      optimizerLR = 0.0004,
-                      MAX_TRAIN_EPISODES = 80,
-                      MAX_EVAL_EPISODES = 1,
-                      explorationStrategyTrainFn = 'epsilon greedy',
-                      explorationStrategyEvalFn = 'greedy')
-
-    train_rewards, train_times, eval_rewards, wall_clock_times, _ = nfq_network.runNFQ()
-    all_train_rewards[f'Instance {instance + 1}'] = train_rewards
-    all_train_times[f'Instance {instance + 1}'] = train_times
-    all_wall_clock_times[f'Instance {instance + 1}'] = wall_clock_times
-    all_eval_rewards[f'Instance {instance + 1}'] = eval_rewards
-
-plotQuantity(all_train_rewards, nfq_network.MAX_TRAIN_EPISODES, ['Training Rewards', 'Episodes', 'Rewards'], "nfq_train_rewards.png")
-plotQuantity(all_train_times, nfq_network.MAX_TRAIN_EPISODES, ['Training Times', 'Episodes', 'Time (s)'], "nfq_train_times.png")
-plotQuantity(all_wall_clock_times, nfq_network.MAX_TRAIN_EPISODES, ['Wall Clock Times', 'Episodes', 'Time (s)'], "nfq_wall_clock_times.png")
-plotQuantity(all_eval_rewards, nfq_network.MAX_TRAIN_EPISODES, ['Eval Rewards', 'Episodes', 'Time (s)'], "nfq_eval_rewards.png")

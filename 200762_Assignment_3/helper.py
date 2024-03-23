@@ -21,7 +21,7 @@ beta = 0.1
 beta_rate = 0.9
 MAX_TRAIN_EPISODES = 80
 MAX_EVAL_EPISODES = 1
-DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
 
 def selectGreedyAction(net, state):
     #this function gets q-values via the network and selects greedy action from q-values and returns it
@@ -52,8 +52,6 @@ def selectEpsilonGreedyAction(net,  state, epsilon):
         state = state[0]
     else:
         state = state
-    # state = torch.tensor(state, dtype=torch.float32)
-    # state = state.view(1, -1)
 
     state = torch.from_numpy(state).float().unsqueeze(0).to(DEVICE)
 
@@ -74,11 +72,7 @@ def decayEpsilon(initial_epsilon, min_epsilon, decay_rate, epoch):
     This function applies exponential decay to epsilon.
     """
   epsilon = max(min_epsilon, initial_epsilon * np.exp(-decay_rate * epoch))
-  return 
-
-def softmax(x):
-  return np.exp(x) / np.sum(np.exp(x), axis=0)
-
+  return epsilon
 
 
 def selectSoftMaxAction(net, state, temp):
@@ -97,8 +91,11 @@ def selectSoftMaxAction(net, state, temp):
     state = torch.from_numpy(state).float().unsqueeze(0).to(DEVICE)
     with torch.no_grad():
         q_values = net(state)
-    probs = softmax(q_values.cpu().data.numpy() / temp)
-    num_actions = q_values.shape[-1].flatten()
+
+    probs = torch.softmax(q_values / temp, dim=1).cpu().numpy()
+    probs = probs.ravel()
+    probs /= probs.sum()  
+
     softAction = np.random.choice(len(probs), p = probs)
 
     return softAction
@@ -113,7 +110,6 @@ def decayTemperature(initial_temp, min_temp, decay_rate, epoch):
 
 
 #Value Network
-
 class ValueNetwork(nn.Module):
 
   def __init__(self, inDim, outDim, hDim=[32, 32], activation=F.relu):
@@ -183,11 +179,23 @@ def createDuelingNetwork(inDim, outDim, hDim = [32,32], activation = F.relu):
 
     return duelNetwork
 
+
+def createDuelingNetwork(inDim, outDim, hDim = [32,32], activation = F.relu):
+    #this creates a Feed Forward Neural Network class and instantiates it and returns the class
+    #the class should be derived from torch nn.Module and it should have init and forward method at the very least
+    #the forward function should return q-value which is derived
+    #internally from action-advantage function and v-function,
+    #Note we center the advantage values, basically we subtract the mean from each state-action value
+
+    duelNetwork = DuelingNetwork(inDim, outDim, hDim, activation)
+
+    return duelNetwork
 #Policy Network
 
 class PolicyNetwork(nn.Module):
 
   def __init__(self, inDim, outDim, hDim=[32, 32], activation=F.relu):
+    
     super(PolicyNetwork, self).__init__()
     self.layers = nn.ModuleList()
     prev_dim = inDim
@@ -253,10 +261,10 @@ def plotQuantity(quantityListDict, totalEpisodeCount, descriptionList, filename)
     episodes = np.arange(1, totalEpisodeCount + 1)
 
     plt.figure(figsize=(10, 6))
-    plt.fill_between(episodes, min_values, max_values, color='skyblue', alpha=0.5, label='Min-Max Range')  # Increased alpha
-    plt.plot(episodes, mean_values, 'o-', label='Mean', color='darkblue', linewidth=2)  # Thicker line for mean
-    plt.plot(episodes, max_values, 'x--', label='Max', color='darkgreen', linewidth=1.5)  # Dashed line for max
-    plt.plot(episodes, min_values, 'x--', label='Min', color='darkred', linewidth=1.5)  # Dashed line for min
+    plt.fill_between(episodes, min_values, max_values, color='skyblue', alpha=0.5, label='Min-Max Range')
+    plt.plot(episodes, mean_values, label='Mean', linewidth=2)
+    # plt.plot(episodes, max_values, label='Max', color='darkgreen', linewidth=1.5)
+    # plt.plot(episodes, min_values, label='Min', color='darkred', linewidth=1.5)
 
     if descriptionList:
         plt.title(descriptionList[0])
