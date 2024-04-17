@@ -30,10 +30,21 @@ and 2 *Policy Based Deep RL models* namely:
 
 on two different OpenAI gym environments like __Cartpole-v0__ and __MountainCar-v1__ respectively.
 
+> Assignment 4
+
+This assignment primiarily includes implementation of 3 Deep RL models for continuous action spaces namely:
+- `Deep Deterministic Policy Gradient (DDPG)`
+- `Twin Delayed Deep Deterministic Policy Gradient (TD3)`
+- `Proximal Policy Optimization (PPO)`
+
+on three different OpenAI gym environments like __Pendulum-v1__, __Hopper-v4__ and __HalfCheetah-v1__ respectively.
+
 > Midsem
 - Implementation of Random Maze Environment and its simulations
 - Implementation of `Policy Iteration` and `Value Iteration` for optimal policy calculation and values for each of the states in the environment and its comparative analyses.
 - Implementation of `Monte Carlo`, `Temporal Difference-n step`, `TD`($\lambda$) algorithm for calculation of values for each states using optimal policies and its comparative analyses.
+
+
 
 
 
